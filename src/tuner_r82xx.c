@@ -29,6 +29,7 @@
 #include "rtlsdr_i2c.h"
 #include "tuner_r82xx.h"
 #include "rtl-sdr.h"
+#include "librtlsdr.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define MHZ(x)		((x)*1000*1000)
@@ -1027,7 +1028,7 @@ int r82xx_set_gain_new(struct r82xx_priv *priv, int stage, int gain_index)
     rtlsdr_dev_t *dev=(rtlsdr_dev_t *)priv->rtl_dev;
     int autogain;
 
-    //uint8_t data[4];
+    uint8_t data[4];
 
     /*
         */
