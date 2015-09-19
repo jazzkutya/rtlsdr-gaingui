@@ -1571,13 +1571,6 @@ found:
 		break;
 	}
 
-	if (dev->tuner->init)
-		r = dev->tuner->init(dev);
-
-	rtlsdr_set_i2c_repeater(dev, 0);
-
-	*out_dev = dev;
-
     // TODO setup file-mmap interface for this device
     snprintf(cfn,sizeof(cfn),"/dev/shm/rtlsdr%d",index);
     cfd=open(cfn,O_RDWR | O_CREAT, 0666);       // fuck those constants
@@ -1602,10 +1595,20 @@ found:
         goto err;
     }
     memset(dev->mmif,0,sizeof(rtlsdr_mmif_t));
-    // TODO init general data for tuner: how many gains, gain lists
-    //  - gain_names
-    //  - gainvalues
-    //  - currentgains
+    // init general data for tuner: how many gains, gain lists
+    //  - gain_names: tuner->init will do this
+    //  - gainvalues: tuner->init will do this
+    //  - currentgains: setting gain will do this
+
+	if (dev->tuner->init)
+		r = dev->tuner->init(dev);
+
+    msync(dev->mmif,sizeof(rtlsdr_mmif_t),MS_ASYNC | MS_INVALIDATE);
+
+	rtlsdr_set_i2c_repeater(dev, 0);
+
+	*out_dev = dev;
+
 
 	return 0;
 err:
