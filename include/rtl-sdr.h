@@ -29,6 +29,18 @@ extern "C" {
 
 typedef struct rtlsdr_dev rtlsdr_dev_t;
 
+struct rtlsdr_mmif {
+    int result; // 2 result: OK (1), Error (-1 or anything negative)
+    int command; // one command: set all gains (also switches to manual mode)
+    int currentgains[8];
+    int setgains[8];        // input
+    char gain_names[8][32]; // max 31 char, null terminated strings. list is "" terminated
+    int gainvalues[8][256];
+    int gainmode;
+};
+
+typedef struct rtlsdr_mmif rtlsdr_mmif_t;
+
 RTLSDR_API uint32_t rtlsdr_get_device_count(void);
 
 RTLSDR_API const char* rtlsdr_get_device_name(uint32_t index);
