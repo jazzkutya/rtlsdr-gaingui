@@ -28,6 +28,7 @@
 
 #include "rtlsdr_i2c.h"
 #include "tuner_r82xx.h"
+#include "rtl-sdr.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define MHZ(x)		((x)*1000*1000)
@@ -974,6 +975,7 @@ static int r82xx_set_tv_standard(struct r82xx_priv *priv,
 	return 0;
 }
 
+// this is strange and also highly unused
 static int r82xx_read_gain(struct r82xx_priv *priv)
 {
 	uint8_t data[4];
@@ -1004,6 +1006,85 @@ static const int r82xx_mixer_gain_steps[]  = {
 	0, 5, 10, 10, 19, 9, 10, 25, 17, 10, 8, 16, 13, 6, 3, -8
 };
 
+void r82xx_init_mmifdata(rtlsdr_mmif_t *mmif) {
+    int i, t, gains[3]={0,0,VGA_BASE_GAIN};
+    strcpy(mmif->gain_names[0],"LNA");
+    strcpy(mmif->gain_names[1],"Mixer");
+    strcpy(mmif->gain_names[2],"VGA");
+    for (i=0;i<16;i++) {
+        gains[0]+=r82xx_lna_gain_steps[i];
+        gains[1]+=r82xx_mixer_gain_steps[i];
+        gains[2]+=r82xx_vga_gain_steps[i];
+        for (t=0;t<3;t++) mmif->gainvalues[t][i]=gains[t];
+    }
+    // nobody uses a 200dB attenuation in a dvbt dongle. we use this as special value marking end of list.
+    for (t=0;t<3;t++) mmif->gainvalues[t][16]=-2000;
+}
+
+int r82xx_set_gain_new(struct r82xx_priv *priv, int stage, int gain_index)
+{
+	int rc;
+    rtlsdr_dev_t *dev=(rtlsdr_dev_t *)priv->rtl_dev;
+    int autogain;
+
+    //uint8_t data[4];
+
+    /*
+        */
+
+    // gain stages: LNA, Mixer, VGA
+    // other possible functionalities communicated with special stage values:
+    //  - fill in gain base data in rtl_dev->mmif
+    //  - global auto gain on/off
+    switch (stage) {
+        case -1:        // populate gain_names and gainvalues in mmif
+            r82xx_init_mmifdata(dev->mmif);
+            return 0;
+        case -2:        // set augo-gain mode on/off
+            autogain=gain_index ? 1:0;
+            // LNA auto
+            rc = r82xx_write_reg_mask(priv, 0x05, (1-autogain)>>4, 0x10);
+            if (rc < 0)
+                return rc;
+
+             // Mixer auto
+            rc = r82xx_write_reg_mask(priv, 0x07, autogain>>4, 0x10);
+            if (rc < 0)
+                return rc;
+
+            // what the hell is this?
+            rc = r82xx_read(priv, 0x00, data, sizeof(data));
+            if (rc < 0)
+                return rc;
+
+            dev->mmif->gainmode=autogain;
+            // set default VGA gain: 0xb / 26.5 for auto, 0x8 / 16.3 dB for manual
+            return r82xx_set_gain_new(priv,2,autogain ? 0xb : 0x8);
+
+        case 0:         // LNA
+            rc = r82xx_write_reg_mask(priv, 0x05, gain_index, 0x0f);
+            if (rc < 0)
+                return rc;
+            break;
+        case 1:         // Mixer
+            rc = r82xx_write_reg_mask(priv, 0x07, gain_index, 0x0f);
+            if (rc < 0)
+                return rc;
+            break;
+        case 2:         // VGA
+            /* VGA gain value 8 gives(16.3 dB) */
+            rc = r82xx_write_reg_mask(priv, 0x0c, gain_index, 0x9f);
+            if (rc < 0)
+                return rc;
+            break;
+        default: return -1;
+    }
+    // save
+    dev->mmif->currentgains[stage]=gain_index;
+
+	return 0;
+}
+
 int r82xx_set_gain(struct r82xx_priv *priv, int set_manual_gain, int gain)
 {
 	int rc;
@@ -1013,24 +1094,7 @@ int r82xx_set_gain(struct r82xx_priv *priv, int set_manual_gain, int gain)
 		uint8_t mix_index = 0, lna_index = 0;
 		uint8_t data[4];
 
-		/* LNA auto off */
-		rc = r82xx_write_reg_mask(priv, 0x05, 0x10, 0x10);
-		if (rc < 0)
-			return rc;
-
-		 /* Mixer auto off */
-		rc = r82xx_write_reg_mask(priv, 0x07, 0, 0x10);
-		if (rc < 0)
-			return rc;
-
-		rc = r82xx_read(priv, 0x00, data, sizeof(data));
-		if (rc < 0)
-			return rc;
-
-		/* set fixed VGA gain for now (16.3 dB) */
-		rc = r82xx_write_reg_mask(priv, 0x0c, 0x08, 0x9f);
-		if (rc < 0)
-			return rc;
+        r82xx_set_gain_new(priv,-2,0);   // turn off auto gains
 
 		for (i = 0; i < 15; i++) {
 			if (total_gain >= gain)
@@ -1045,29 +1109,16 @@ int r82xx_set_gain(struct r82xx_priv *priv, int set_manual_gain, int gain)
 		}
 
 		/* set LNA gain */
-		rc = r82xx_write_reg_mask(priv, 0x05, lna_index, 0x0f);
+        rc = r82xx_set_gain_new(priv,0,lna_index);
 		if (rc < 0)
 			return rc;
 
 		/* set Mixer gain */
-		rc = r82xx_write_reg_mask(priv, 0x07, mix_index, 0x0f);
+        rc = r82xx_set_gain_new(priv,1,lna_index);
 		if (rc < 0)
 			return rc;
 	} else {
-		/* LNA */
-		rc = r82xx_write_reg_mask(priv, 0x05, 0, 0x10);
-		if (rc < 0)
-			return rc;
-
-		/* Mixer */
-		rc = r82xx_write_reg_mask(priv, 0x07, 0x10, 0x10);
-		if (rc < 0)
-			return rc;
-
-		/* set fixed VGA gain for now (26.5 dB) */
-		rc = r82xx_write_reg_mask(priv, 0x0c, 0x0b, 0x9f);
-		if (rc < 0)
-			return rc;
+        r82xx_set_gain_new(priv,-2,1);   // turn on auto gains
 	}
 
 	return 0;
