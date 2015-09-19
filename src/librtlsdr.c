@@ -25,7 +25,12 @@
 #ifndef _WIN32
 #include <unistd.h>
 #define min(a, b) (((a) < (b)) ? (a) : (b))
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 #endif
+
 
 #include <libusb.h>
 
@@ -124,6 +129,7 @@ struct rtlsdr_dev {
 	int dev_lost;
 	int driver_active;
 	unsigned int xfer_errors;
+    rtlsdr_mmif_t *mmif;
 };
 
 void rtlsdr_set_gpio_bit(rtlsdr_dev_t *dev, uint8_t gpio, int val);
@@ -1445,6 +1451,9 @@ int rtlsdr_open(rtlsdr_dev_t **out_dev, uint32_t index)
 	struct libusb_device_descriptor dd;
 	uint8_t reg;
 	ssize_t cnt;
+    char cfn[81];
+    int cfd;
+    unsigned char zero=0;
 
 	dev = malloc(sizeof(rtlsdr_dev_t));
 	if (NULL == dev)
@@ -1621,6 +1630,35 @@ found:
 	rtlsdr_set_i2c_repeater(dev, 0);
 
 	*out_dev = dev;
+
+    // TODO setup file-mmap interface for this device
+    snprintf(cfn,sizeof(cfn),"/dev/shm/rtlsdr%d",index);
+    cfd=open(cfn,O_RDWR | O_CREAT, 0666);       // fuck those constants
+    if (cfd<0) {
+        fprintf(stderr, "MMIF: %s: %s\n",cfn,strerror(errno));
+        r=-1;
+        goto err;
+    }
+    if (lseek(cfd,sizeof(rtlsdr_mmif_t)-1,SEEK_SET)<(off_t)-1) {
+        fprintf(stderr, "MMIF: %s: %s\n",cfn,strerror(errno));
+        r=-1;
+        goto err;
+    }
+    if (write(cfd,&zero,1)<-1) {
+        fprintf(stderr, "MMIF: %s: %s\n",cfn,strerror(errno));
+        r=-1;
+        goto err;
+    }
+    if ((dev->mmif=mmap(NULL, sizeof(rtlsdr_mmif_t), PROT_READ | PROT_WRITE, MAP_SHARED, cfd,0))==MAP_FAILED) {
+        fprintf(stderr, "MMIF: mmap: %s: %s\n",cfn,strerror(errno));
+        r=-1;
+        goto err;
+    }
+    memset(dev->mmif,0,sizeof(rtlsdr_mmif_t));
+    // TODO init general data for tuner: how many gains, gain lists
+    //  - gain_names
+    //  - gainvalues
+    //  - currentgains
 
 	return 0;
 err:
