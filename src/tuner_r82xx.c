@@ -1044,12 +1044,12 @@ int r82xx_set_gain_new(struct r82xx_priv *priv, int stage, int gain_index)
         case -2:        // set augo-gain mode on/off
             autogain=gain_index ? 1:0;
             // LNA auto
-            rc = r82xx_write_reg_mask(priv, 0x05, (1-autogain)>>4, 0x10);
+            rc = r82xx_write_reg_mask(priv, 0x05, (1-autogain)<<4, 0x10);
             if (rc < 0)
                 return rc;
 
              // Mixer auto
-            rc = r82xx_write_reg_mask(priv, 0x07, autogain>>4, 0x10);
+            rc = r82xx_write_reg_mask(priv, 0x07, autogain<<4, 0x10);
             if (rc < 0)
                 return rc;
 
@@ -1365,6 +1365,7 @@ int r82xx_init(struct r82xx_priv *priv)
 
 	priv->init_done = 1;
 
+    r82xx_set_gain_new(priv,-1,0);      // populate mmif struct with tuner information (gain names, available gain values)
 err:
 	if (rc < 0)
 		fprintf(stderr, "%s: failed=%d\n", __FUNCTION__, rc);
