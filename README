@@ -14,7 +14,7 @@ monitors current gain settings of first rtlsdr device. Reported values are
 only valid if a librtlsdr app is running at the same time, uses first rtlsdr
 device and it is a device with R82xx tuner.
 
-Aetting gains work now. If the set button does not become active again it
+Setting gains work now. If the set button does not become active again it
 means the command sent to the librtlsdr app is not finished. Or it is not
 even running.
 Setting the gains only works when the librtlsdr app is actively transferring
