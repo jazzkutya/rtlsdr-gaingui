@@ -1001,6 +1001,31 @@ int rtlsdr_set_tuner_gain(rtlsdr_dev_t *dev, int gain)
 	return r;
 }
 
+int rtlsdr_set_tuner_gain_new(rtlsdr_dev_t *dev, int stage, int gain_index)
+{
+    int r=-1;
+
+    if (!dev || !dev->tuner)
+        return -1;
+
+    rtlsdr_set_i2c_repeater(dev, 1);
+    switch (dev->tuner_type) {
+        case RTLSDR_TUNER_R820T:
+        case RTLSDR_TUNER_R828D:
+            r=r82xx_set_gain_new(&dev->r82xx_p,stage,gain_index);
+            break;
+        case RTLSDR_TUNER_E4000:
+        case RTLSDR_TUNER_FC0012:
+        case RTLSDR_TUNER_FC0013:
+        case RTLSDR_TUNER_FC2580:
+        case RTLSDR_TUNER_UNKNOWN:
+            // nope
+            break;
+    }
+    rtlsdr_set_i2c_repeater(dev, 0);
+    return r;
+}
+
 int rtlsdr_get_tuner_gain(rtlsdr_dev_t *dev)
 {
 	if (!dev)
