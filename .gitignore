@@ -39,5 +39,7 @@ CMakeCache.txt
 */CMakeFiles
 CMakeFiles
 *.cmake
+*.pyc
+__pycache__/
 build/
 *~
