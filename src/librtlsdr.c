@@ -1647,6 +1647,23 @@ err:
 	return r;
 }
 
+int rtlsdr_process_mmif(rtlsdr_dev_t *dev) {
+    if (dev->mmif) {
+        if (dev->mmif->command==1) {
+            int stage,r=-1;
+            // TODO error info in r is not good - only applies to last operation
+            for (stage=0;stage<8;stage++) {
+                if (dev->mmif->gain_names[0]==0) break;
+                r=rtlsdr_set_tuner_gain_new(dev,stage,dev->mmif->setgains[stage]);
+            }
+            // set result
+            dev->mmif->result=r<0 ? 1: -1;
+            dev->mmif->command==0;
+        }
+    }
+    return 0;       // yes. ignore errors
+}
+
 int rtlsdr_close(rtlsdr_dev_t *dev)
 {
 	if (!dev)
@@ -1701,12 +1718,15 @@ int rtlsdr_read_sync(rtlsdr_dev_t *dev, void *buf, int len, int *n_read)
 	if (!dev)
 		return -1;
 
+    rtlsdr_process_mmif(dev);
 	return libusb_bulk_transfer(dev->devh, 0x81, buf, len, n_read, BULK_TIMEOUT);
 }
 
 static void LIBUSB_CALL _libusb_callback(struct libusb_transfer *xfer)
 {
 	rtlsdr_dev_t *dev = (rtlsdr_dev_t *)xfer->user_data;
+
+    rtlsdr_process_mmif(dev);
 
 	if (LIBUSB_TRANSFER_COMPLETED == xfer->status) {
 		if (dev->cb)
@@ -1805,6 +1825,8 @@ int rtlsdr_read_async(rtlsdr_dev_t *dev, rtlsdr_read_async_cb_t cb, void *ctx,
 
 	if (!dev)
 		return -1;
+
+    rtlsdr_process_mmif(dev);
 
 	if (RTLSDR_INACTIVE != dev->async_status)
 		return -2;
