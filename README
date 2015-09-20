@@ -4,3 +4,12 @@ turns your Realtek RTL2832 based DVB dongle into a SDR receiver
 
 For more information see:
 http://sdr.osmocom.org/trac/wiki/rtl-sdr
+
+my project is to add a gui (written in python) that communicates with
+librtlsdr in any app to control R820t gains separately.
+
+CURRENT STATE:
+the gui app is in rtlsdr-control
+monitors current gain settings of first rtlsdr device. Reported values are
+only valid if a librtlsdr app is running at the same time, uses first rtlsdr
+device and it is an R820t.
