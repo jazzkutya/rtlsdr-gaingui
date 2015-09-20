@@ -18,6 +18,12 @@ class MMIF( QObject ):
     def __init__ ( self, parent = None, mmif_fn='/dev/shm/rtlsdr0' ):
         QObject.__init__( self, parent )
         self.fn=mmif_fn
+        ui=parent.ui
+        self.setters=[ui.s0set,ui.s1set,ui.s2set]
+        self.glabels=[ui.s0gain,ui.s1gain,ui.s2gain]
+        self.doitbutt=ui.doitbutt
+        ui.doitbutt.clicked.connect(self.doSet)
+        self.prevcommand=0
     
     def _init(self):
         with open(self.fn,'r+b') as f:
@@ -40,25 +46,44 @@ class MMIF( QObject ):
                 if (gain<=-2000): break
                 values.append(gain)
         print(self.gainnames)
-        print(self.gainvalues)
+        #print(self.gainvalues)
+        for t in range(len(self.gainnames)):
+            nvals=len(self.gainvalues[t])
+            for i in range(nvals): self.setters[t].insertItem(i,"% 2.1f dB" % (self.gainvalues[t][nvals-1-i]/10.0))
+            self.setters[t].setCurrentIndex(nvals-1-self.gain_index(t))
         self.ticktimer=QBasicTimer()
+    
+    def selected_gain_index(self,stage):
+        nvals=len(self.gainvalues[stage])
+        return nvals-1-self.setters[stage].currentIndex()
+    
+    def selected_gain(self,stage):
+        return self.gainvalues[stage][self.selected_gain_index(stage)]
     
     def gain_index(self,stage):
         offset=OFS_CURRENTGAINS+stage*4
         return struct.unpack('i', self.mmif[offset:offset+4])[0]
-        mainwin.ui.s0gain.setText("%d fdB" % (self.gain_index(0)))
 
     def gain(self,stage):
         gi=self.gain_index(stage)
         return self.gainvalues[stage][gi]/10.0
+        
+    def doSet(self):
+        gains2set=[]
+        for t in range(len(self.gainnames)): gains2set.append(self.selected_gain_index(t))
+        #print "set happens: ",gains2set
+        for t in range(len(gains2set)):
+            offset=OFS_SETGAINS+t*4
+            self.mmif[offset:offset+4]=struct.pack('i',gains2set[t])
+        self.mmif[OFS_COMMAND:OFS_COMMAND+4]=struct.pack('i',1)      # signal librtlsdr to set teh gains
+        self.doitbutt.setEnabled(0)
         
     def start(self):
         self._init()
         self.ticktimer.start(100,self)
         
     def timerEvent(self, event):
-        mainwin=self.parent()
-        mainwin.ui.s0gain.setText("% 2.1f dB" % (self.gain(0)))
-        mainwin.ui.s1gain.setText("% 2.1f dB" % (self.gain(1)))
-        mainwin.ui.s2gain.setText("% 2.1f dB" % (self.gain(2)))
-        #print("yay")
+        for t in range(3): self.glabels[t].setText("% 2.1f dB" % (self.gain(t)))
+        command=struct.unpack('i', self.mmif[OFS_COMMAND:OFS_COMMAND+4])[0]
+        if command!=self.prevcommand and command==0:
+            self.doitbutt.setEnabled(1)
