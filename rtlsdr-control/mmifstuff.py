@@ -76,6 +76,7 @@ class MMIF( QObject ):
             offset=OFS_SETGAINS+t*4
             self.mmif[offset:offset+4]=struct.pack('i',gains2set[t])
         self.mmif[OFS_COMMAND:OFS_COMMAND+4]=struct.pack('i',1)      # signal librtlsdr to set teh gains
+        self.prevcommand=1
         self.doitbutt.setEnabled(0)
         
     def start(self):
@@ -87,3 +88,4 @@ class MMIF( QObject ):
         command=struct.unpack('i', self.mmif[OFS_COMMAND:OFS_COMMAND+4])[0]
         if command!=self.prevcommand and command==0:
             self.doitbutt.setEnabled(1)
+        self.prevcommand=command
