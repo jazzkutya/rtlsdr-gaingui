@@ -1,0 +1,31 @@
+<!DOCTYPE XUPProject>
+<!--
+###########################################################################################
+##      Created using Monkey Studio IDE v1.9.0.4 (1.9.0.4)
+##
+##  Author    : jazzkutya
+##  Project   : rtlsdr-control
+##  FileName  : rtlsdr-control.xpythonqt
+##  Date      : 2015-09-20T05:32:08
+##  License   : GPL2
+##  Comment   : Creating using Monkey Studio RAD
+##  Home Page : $Home Page$
+##
+##  This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
+##  WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+##
+###########################################################################################
+-->
+<project version="1.1.0" name="rtlsdr-control">
+    <variable name="XUP.MAIN_FILE">
+        <value>main.py</value>
+    </variable>
+    <variable name="FORMS">
+        <file>mainwindow.ui</file>
+    </variable>
+    <variable name="PYTHON_FILES">
+        <file>main.py</file>
+        <file>mainwindow.py</file>
+        <file>mmifstuff.py</file>
+    </variable>
+</project>
