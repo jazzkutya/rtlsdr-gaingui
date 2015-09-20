@@ -12,4 +12,4 @@ CURRENT STATE:
 the gui app is in rtlsdr-control
 monitors current gain settings of first rtlsdr device. Reported values are
 only valid if a librtlsdr app is running at the same time, uses first rtlsdr
-device and it is an R820t.
+device and it is a device with R82xx tuner.
