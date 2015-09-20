@@ -1007,7 +1007,6 @@ int rtlsdr_set_tuner_gain_new(rtlsdr_dev_t *dev, int stage, int gain_index)
 
     if (!dev || !dev->tuner)
         return -1;
-
     rtlsdr_set_i2c_repeater(dev, 1);
     switch (dev->tuner_type) {
         case RTLSDR_TUNER_R820T:
@@ -1653,12 +1652,15 @@ int rtlsdr_process_mmif(rtlsdr_dev_t *dev) {
             int stage,r=-1;
             // TODO error info in r is not good - only applies to last operation
             for (stage=0;stage<8;stage++) {
-                if (dev->mmif->gain_names[0]==0) break;
-                r=rtlsdr_set_tuner_gain_new(dev,stage,dev->mmif->setgains[stage]);
+                int gain_index;
+                if (dev->mmif->gain_names[stage][0]==0) break;
+                gain_index=dev->mmif->setgains[stage];
+                //fprintf(stderr,"stage %d: setting gain index %d\n",stage,gain_index);
+                r=rtlsdr_set_tuner_gain_new(dev,stage,gain_index);
             }
             // set result
-            dev->mmif->result=r<0 ? 1: -1;
-            dev->mmif->command==0;
+            dev->mmif->result=r<0 ? -1: 1;
+            dev->mmif->command=0;
         }
     }
     return 0;       // yes. ignore errors
@@ -1725,8 +1727,6 @@ int rtlsdr_read_sync(rtlsdr_dev_t *dev, void *buf, int len, int *n_read)
 static void LIBUSB_CALL _libusb_callback(struct libusb_transfer *xfer)
 {
 	rtlsdr_dev_t *dev = (rtlsdr_dev_t *)xfer->user_data;
-
-    rtlsdr_process_mmif(dev);
 
 	if (LIBUSB_TRANSFER_COMPLETED == xfer->status) {
 		if (dev->cb)
@@ -1819,7 +1819,7 @@ int rtlsdr_read_async(rtlsdr_dev_t *dev, rtlsdr_read_async_cb_t cb, void *ctx,
 {
 	unsigned int i;
 	int r = 0;
-	struct timeval tv = { 1, 0 };
+	struct timeval tv = { 0, 100000 };
 	struct timeval zerotv = { 0, 0 };
 	enum rtlsdr_async_status next_status = RTLSDR_INACTIVE;
 
@@ -1870,6 +1870,7 @@ int rtlsdr_read_async(rtlsdr_dev_t *dev, rtlsdr_read_async_cb_t cb, void *ctx,
 	while (RTLSDR_INACTIVE != dev->async_status) {
 		r = libusb_handle_events_timeout_completed(dev->ctx, &tv,
 							   &dev->async_cancel);
+        rtlsdr_process_mmif(dev);
 		if (r < 0) {
 			/*fprintf(stderr, "handle_events returned: %d\n", r);*/
 			if (r == LIBUSB_ERROR_INTERRUPTED) /* stray signal */
