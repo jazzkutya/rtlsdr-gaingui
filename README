@@ -8,6 +8,7 @@ http://sdr.osmocom.org/trac/wiki/rtl-sdr
 my project is to add a gui (written in python) that communicates with
 librtlsdr in any app to control R820t gains separately.
 
+
 CURRENT STATE:
 the gui app is in rtlsdr-control
 monitors current gain settings of first rtlsdr device. Reported values are
@@ -19,3 +20,6 @@ means the command sent to the librtlsdr app is not finished. Or it is not
 even running.
 Setting the gains only works when the librtlsdr app is actively transferring
 data from the device.
+
+Linux only. Reports about success/failure on OSX are welcome. Also patches to make it work on windows
+(if possible at all, I'm using a shared mmaped file for communication) are welcome.
